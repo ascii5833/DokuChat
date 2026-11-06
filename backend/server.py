@@ -1,4 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, status
+from fastapi.middleware.cors import  CORSMiddleware
+from fastapi.responses import FileResponse
 from rag import (load_pdf, generate_rag_chain, generate_rag_prompt_chatbot, get_chunks, createVectorStore)
 import uvicorn
 from langchain_google_genai import GoogleGenerativeAI, GoogleGenerativeAIEmbeddings
@@ -7,10 +9,23 @@ from dotenv import load_dotenv
 from starlette.concurrency import run_in_threadpool
 import os
 import uuid
+from pypdf import PdfReader
+
 
 load_dotenv()
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:5173"
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = origins,
+    allow_credentials = True,
+    allow_methods = ["*"],
+    allow_headers = ["*"]
+)
 
 ROOT_DIR = Path(__file__).parent.parent
 SAVE_PATH = ROOT_DIR / "docs"
@@ -47,14 +62,16 @@ def index_pdf(pdf_path, pdf_name):
     
     
     
-    
-    
-    
+v_store_path = None
 
+    
+    
+#root
 @app.get("/")
 async def root():
     return {"message": "Welcome to DokuChat"}
 
+#pdf upload
 @app.post("/upload_pdf/")
 async def upload_pdf(pdf : UploadFile = File()):
     if pdf.content_type != "application/pdf":
@@ -81,11 +98,23 @@ async def upload_pdf(pdf : UploadFile = File()):
         )
     finally:
         await pdf.close()
+        
+    try:
+        reader = PdfReader(file_path)
+        total_pages = len(reader.pages)
+        
+    except Exception as e:
+        if file_path.exists():
+            file_path.unlink()
+        
+        raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail = f"Corrupted pdf file: {str(e)}")
     
     pdf_details = {
             "filename": file_name,
             "saved_path": file_path,
-            "message": "PDF Uploaded successfully"
+            "message": "PDF Uploaded successfully",
+            "n_pages": total_pages
     }
     
     vstore_info = {}
@@ -101,9 +130,28 @@ async def upload_pdf(pdf : UploadFile = File()):
             detail = f"An error occured when creating a vector store : {str(e)}"
         )    
 
+    global v_store_path;
+    v_store_path = vstore_info['vstore_location']
+    
     return {**pdf_details, "vstore_info": vstore_info}
     
-
+#pdf fetch
+@app.get("/pdf/{filename}")
+async def getpdf(filename:str):
+    file_path = SAVE_PATH / filename
+    
+    if not file_path.exists():
+        return HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = f"File {filename} couldn't be found")
+    
+    return FileResponse(
+        path = file_path,
+        media_type = "application/pdf",
+        filename = filename
+    )
+    
+    
+        
+        
 if __name__ == "__main__":
     uvicorn.run("server:app", host = "127.0.0.1", port = 8000, reload = True)
     

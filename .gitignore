@@ -1,14 +1,10 @@
 
-# =========================
-# Environment variables
-# =========================
+#env
 .env
 .env.*
 !.env.example
 
-# =========================
-# Python / Backend
-# =========================
+#backend
 __pycache__/
 *.py[cod]
 *.pyo
@@ -22,9 +18,7 @@ ENV/
 .mypy_cache/
 .ruff_cache/
 
-# =========================
-# Frontend / Node
-# =========================
+#frontend
 node_modules/
 dist/
 build/
@@ -32,30 +26,27 @@ build/
 coverage/
 .npm/
 
-# =========================
-# DokuChat - RAG data
-# =========================
 
 # Uploaded PDFs
 backend/documents/*.pdf
 
-# Generated FAISS vector stores
+#vecstores
 backend/eval/vstores/
 
-# Evaluation outputs
+#evals
 backend/eval/results/
 backend/eval/data/
 
-# =========================
-# IDE / OS
-# =========================
+#ide
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 
-# =========================
-# Logs
-# =========================
+#logs
 *.log
 logs/
+
+#generated
+docs/
+vstores/

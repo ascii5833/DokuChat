@@ -5,7 +5,7 @@ import Header from './components/Header'
 import ChatWindow from './components/Chat/ChatWindow'
 import DocListWindow from './components/DocList/DocListWindow'
 import UploadWindow from './components/Upload/UploadWindow'
-import { useState } from 'react'
+import { useState} from 'react'
 
 
 function App() {
@@ -13,9 +13,11 @@ function App() {
 
   const [curPage, setCurPage] = useState(1);
 
-  const [curPdf, setCurPdf] = useState("");
+  const [curPdf, setCurPdf] = useState(null);
 
-  const handleSubmit = (e)=>{
+  const [pages, setPages] = useState(null);
+
+  const handleSubmit = async (e)=>{
     e.preventDefault();
 
     const fileInput = document.getElementById("formFile");
@@ -27,15 +29,36 @@ function App() {
     }
 
     const formdata = new FormData();
-    formdata.append("pdfFile", file);
+    formdata.append("pdf", file);
 
-    setCurPdf(file.name);
+   try{
+    const response = await fetch("http://127.0.0.1:8000/upload_pdf/", {
+      method: "POST",
+      body: formdata
+    });
+
+    const data = await response.json();
+
+    const pdf_url = `http://127.0.0.1:8000/pdf/${data.filename}`;
+
+    const n_pages = parseInt(data['n_pages']);
+
+    setPages(n_pages);
+
+    setCurPdf(pdf_url);
+
+   }
+   catch(error){
+      console.error("Upload failed", error);
+      alert("Failed to upload pdf, please try again..");
+   }
   }
 
    const onDocumentLoadSuccess = ({numPages}) => {
         setNumPages(numPages);
     }
-    const setCurrent = (page, type) =>{
+  //set current page on citiation click
+  const setCurrent = (page, type) =>{
         if(type == "back"){
           setCurPage(p=>p-1);
         }
@@ -44,6 +67,10 @@ function App() {
         }
 
         else if (type == "spec"){
+          if(!pages || page > pages || page < 0){
+            alert("Invalid page, ai error");
+            return;
+          }
           setCurPage(page);
         }
     }
@@ -55,14 +82,13 @@ return (
 <div className = "h-full flex justify-between pt-10"> 
   <div className= "w-[60%] min-w-0">
     <PdfViewer onDocumentLoadSuccess={onDocumentLoadSuccess}
-setCurrent={setCurrent} curPage={curPage} numPages={numPages}/> 
+setCurrent={setCurrent} curPage={curPage} numPages={numPages} pdfPath = {curPdf}/> 
   </div>
   <div className = "w-[40%] min-w-0">  <ChatWindow onCitiationClick={setCurrent}/></div>
   </div>
   <div className="flex align-middle w-full justify-center mt-20">  
     <DocListWindow/>
   <UploadWindow handleSubmit = {handleSubmit}/>
-  <h2>{curPdf}</h2>
   </div>
 
 </div>
