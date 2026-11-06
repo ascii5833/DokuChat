@@ -17,6 +17,9 @@ function App() {
 
   const [pages, setPages] = useState(null);
 
+  
+
+  //handle document submit
   const handleSubmit = async (e)=>{
     e.preventDefault();
 
@@ -54,6 +57,7 @@ function App() {
    }
   }
 
+  //pdf loaded successfully
    const onDocumentLoadSuccess = ({numPages}) => {
         setNumPages(numPages);
     }

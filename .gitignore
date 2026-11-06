@@ -50,3 +50,4 @@ logs/
 #generated
 docs/
 vstores/
+mappings.json

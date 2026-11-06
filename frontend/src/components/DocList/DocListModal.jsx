@@ -1,8 +1,118 @@
 import React from "react";
+import {useState, useEffect} from 'react';
+import ErrorAlert from "../Alert/ErrorAlert";
+
 
 
 const DocListModal = ({toggleDocList})=> {
-return <div className="fixed inset-0 p-4 flex justify-center items-center w-full h-full z-50 bg-black/50 transition">
+  const [docList, setDocList] = useState([]);
+  const [loading,setLoading] = useState(true);
+  const [showErrAlert, setShowErrAlert] = useState(false);
+
+  const fetchPdfs = async ()=>{
+    setLoading(true);
+    try{
+        const response = await fetch("http://127.0.0.1:8000/pdf-list/", {
+          method : "GET"
+        });
+
+        const data = await response.json();
+
+        const pdf_list = data['pdf_list'];
+
+
+        if(pdf_list.length == 0){
+          return;
+        }
+
+        else{
+            setDocList([...pdf_list]);
+
+
+        }
+    }
+    catch(error){
+      setShowErrAlert(true);
+    }
+    finally{
+      setLoading(false);
+    }
+  }
+  //fetch the pdf pages, useEffect baby
+  useEffect(()=>{
+      fetchPdfs();
+  }, []);
+
+const svgDiv = <div className="w-20 h-20">
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 200 200"
+  ><rect
+      fill="#50A2FF"
+      stroke="#50A2FF"
+      strokeWidth="15"
+      width="30"
+      height="30"
+      x="25"
+      y="85"
+    >
+      <animate
+        attributeName="opacity"
+        calcMode="spline"
+        dur="2s"
+        values="1;0;1"
+        keySplines=".5 0 .5 1;.5 0 .5 1"
+        repeatCount="indefinite"
+        begin="-.4s"
+      />
+    </rect>
+
+    <rect
+      fill="#50A2FF"
+      stroke="#50A2FF"
+      strokeWidth="15"
+      width="30"
+      height="30"
+      x="85"
+      y="85"
+    >
+      <animate
+        attributeName="opacity"
+        calcMode="spline"
+        dur="2s"
+        values="1;0;1"
+        keySplines=".5 0 .5 1;.5 0 .5 1"
+        repeatCount="indefinite"
+        begin="-.2s"
+      />
+    </rect>
+
+    <rect
+      fill="#50A2FF"
+      stroke="#50A2FF"
+      strokeWidth="15"
+      width="30"
+      height="30"
+      x="145"
+      y="85"
+    >
+      <animate
+        attributeName="opacity"
+        calcMode="spline"
+        dur="2s"
+        values="1;0;1"
+        keySplines=".5 0 .5 1;.5 0 .5 1"
+        repeatCount="indefinite"
+        begin="0s"
+      />
+    </rect>
+  </svg>
+</div>
+
+
+return <>
+{showErrAlert ? <ErrorAlert message = {"Unable to load documents"} /> : null}
+<div className="fixed inset-0 p-4 flex justify-center items-center w-full h-full z-50 bg-black/50 transition">
       
       <div
         role="dialog"
@@ -39,19 +149,19 @@ return <div className="fixed inset-0 p-4 flex justify-center items-center w-full
           </button>
         </div>
         {/* Form */}
-        <div>
-            <ul>
-                First
-            </ul>
-            <ul>
-                Second
-            </ul>
-            <ul>
-                Third
-            </ul>
-        </div>
+        {loading ? svgDiv : docList.length > 0 ? <ul className="mt-6">
+          {docList.map((ele, idx)=>{
+            return <li key = {ele.pdf_id} className="my-4 mx-3 border-2 border-blue-400 text-blue-400 w-full cursor-pointer
+             hover:text-white 
+             hover:bg-blue-500 hover:border-blue-500 h-full p-3 text-center transition-all duration-300 ease-out  rounded">{ele.name}</li>
+          })}
+        </ul>: <p>Your documents appear here.</p>}
       </div>
     </div>
+    
+    </> 
 }
 
 export default DocListModal;
+
+ 
