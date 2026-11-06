@@ -4,7 +4,7 @@ import ErrorAlert from "../Alert/ErrorAlert";
 
 
 
-const DocListModal = ({toggleDocList})=> {
+const DocListModal = ({toggleDocList, itemClicked})=> {
   const [docList, setDocList] = useState([]);
   const [loading,setLoading] = useState(true);
   const [showErrAlert, setShowErrAlert] = useState(false);
@@ -15,6 +15,10 @@ const DocListModal = ({toggleDocList})=> {
         const response = await fetch("http://127.0.0.1:8000/pdf-list/", {
           method : "GET"
         });
+
+        if(!response.ok){
+          throw new Error(`Something went wrong ${response.status}`)
+        }
 
         const data = await response.json();
 
@@ -43,6 +47,13 @@ const DocListModal = ({toggleDocList})=> {
       fetchPdfs();
   }, []);
 
+//pdf clicked
+const HandleClick = async (ele) =>{
+  await itemClicked(ele);
+
+  toggleDocList();
+
+}
 const svgDiv = <div className="w-20 h-20">
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -153,7 +164,8 @@ return <>
           {docList.map((ele, idx)=>{
             return <li key = {ele.pdf_id} className="my-4 mx-3 border-2 border-blue-400 text-blue-400 w-full cursor-pointer
              hover:text-white 
-             hover:bg-blue-500 hover:border-blue-500 h-full p-3 text-center transition-all duration-300 ease-out  rounded">{ele.name}</li>
+             hover:bg-blue-500 hover:border-blue-500 h-full p-3 text-center transition-all duration-300 ease-out  rounded" 
+             onClick = {()=>HandleClick(ele)}>{ele.name}</li>
           })}
         </ul>: <p>Your documents appear here.</p>}
       </div>

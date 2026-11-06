@@ -82,7 +82,7 @@ async def get_pdf_list():
         with file_path.open("r", encoding = "utf-8") as f:
             data = json.load(f)
         
-        pdf_list = [{"pdf_id": item['filename'], "name": item['original_filename']} for item in data]
+        pdf_list = [{"pdf_id": item['filename'], "name": item['original_filename'], "n_pages": item['n_pages']} for item in data]
         
     except json.JSONDecodeError as j:
             raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR, 
@@ -202,7 +202,7 @@ async def getpdf(filename:str):
     file_path = SAVE_PATH / filename
     
     if not file_path.exists():
-        return HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = f"File {filename} couldn't be found")
+        raise HTTPException(status_code = status.HTTP_404_NOT_FOUND, detail = f"File {filename} couldn't be found")
     
     return FileResponse(
         path = file_path,
