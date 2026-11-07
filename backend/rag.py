@@ -327,8 +327,6 @@ def generate_rag_chain_chatbot(rag_prompt, retriever, model):
                 | retriever
             )
         )
-           # DEBUG: inspect retrieved chunks
-    | RunnableLambda(debug_retrieved_docs)
         #format for context
         | RunnablePassthrough.assign(
             context = (

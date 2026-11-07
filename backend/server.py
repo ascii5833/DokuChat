@@ -294,7 +294,6 @@ async def chat(request: ChatRequest):
             config = {"configurable": {"session_id": session_key}}
         )
         response['sources'] = list(set(response['sources']))
-        
         return {
             "response": response
         }
