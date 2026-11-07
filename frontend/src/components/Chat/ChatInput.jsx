@@ -1,7 +1,7 @@
 import React, {useState} from "react";
 
 
-const ChatInput = ({onSend}) =>{
+const ChatInput = ({onSend, canChat}) =>{
 const [question, setQuestion] = useState("");
 
 const handleSubmit = (e) =>{
@@ -19,7 +19,7 @@ return (
         onChange = {(e)=> setQuestion(e.target.value)}
     className="min-w-0 flex-1 rounded-xl border border-gray-300 px-4 py-3 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
         />
-        <button type = "submit"
+        <button type = "submit" disabled = {!canChat}
         className="cursor-pointer rounded-xl bg-blue-400 px-5 py-3 text-sm font-medium text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
 >Send</button>
     </form>

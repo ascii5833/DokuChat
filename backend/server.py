@@ -1,9 +1,13 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, status
 from fastapi.middleware.cors import  CORSMiddleware
 from fastapi.responses import FileResponse
-from rag import (load_pdf, generate_rag_chain, generate_rag_prompt_chatbot, get_chunks, createVectorStore)
+from rag import (load_pdf, generate_rag_chain_chatbot, generate_rag_prompt_chatbot, get_chunks, createVectorStore, format_docs_with_pages)
 import uvicorn
 from langchain_google_genai import GoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_community.vectorstores import FAISS
+from langchain_core.runnables import RunnableWithMessageHistory, RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.chat_history import InMemoryChatMessageHistory
 from pathlib import Path
 from dotenv import load_dotenv
 from starlette.concurrency import run_in_threadpool
@@ -12,6 +16,10 @@ import uuid
 from pypdf import PdfReader
 import json
 import shutil
+from pydantic import BaseModel
+from operator import itemgetter
+
+
 
 load_dotenv()
 
@@ -44,6 +52,14 @@ API_KEY = os.getenv('API_KEY')
 embeddings = GoogleGenerativeAIEmbeddings(model = EMBED_MODEL, api_key = API_KEY)
 model = GoogleGenerativeAI(model = MODEL, api_key = API_KEY)
 
+
+#pydantic
+class ChatRequest(BaseModel):
+    question: str
+    session_id: str
+    pdf_id: str
+    
+#chunker
 def index_pdf(pdf_path, pdf_name):
     #chunking
     docs = load_pdf(pdf_path)
@@ -210,7 +226,82 @@ async def getpdf(filename:str):
         filename = filename
     )
     
+vectorstore_cache = {}
+
+def getVectorStore(pdf_id):
+    '''
+    Returns vector store if its cached else generates a new vectorstore and caches it
     
+    Inputs:
+    pdf_id: id of the vectorstore pdf
+    
+    Returns:
+    FAISS vectorstore.
+    
+    '''
+    vectorstore_path = V_PATH / pdf_id
+    if pdf_id not in vectorstore_cache:
+        vectorstore_cache[pdf_id] = FAISS.load_local(folder_path = vectorstore_path, embeddings = embeddings,
+                                                     allow_dangerous_deserialization = True)
+    return vectorstore_cache[pdf_id]
+
+#session store
+store = {}
+
+def get_session_history(session_id):
+    if session_id not in store:
+        store[session_id] = InMemoryChatMessageHistory()
+        
+    return store[session_id] 
+   
+rag_chain_cache = {}
+#rag chain(cache)
+def get_rag_chain(session_key, pdf_id):
+    
+    if session_key not in rag_chain_cache:
+        vectorstore = getVectorStore(pdf_id = pdf_id)
+        retriever = vectorstore.as_retriever(
+                   search_kwargs = {"k": 7}
+        )
+        chat_prompt = generate_rag_prompt_chatbot()
+        rag_chain = generate_rag_chain_chatbot(rag_prompt = chat_prompt, retriever = retriever, model = model)
+                
+        rag_chain_cache[session_key] = RunnableWithMessageHistory(
+                    rag_chain,
+                    get_session_history,
+                    input_messages_key = "question",
+                    history_messages_key = "history"
+                )
+        
+    return rag_chain_cache[session_key]
+     
+#get chat data
+@app.post("/chat/")
+async def chat(request: ChatRequest):
+    vectorstore_path = V_PATH / request.pdf_id
+    
+    if not vectorstore_path.is_dir():
+        raise HTTPException(status_code = status.HTTP_404_NOT_FOUND,
+                            detail = "Couldn't find the required pdf file.")
+    
+    try:
+        
+        session_key = f"{request.pdf_id}:{request.session_id}"
+        conversational_chain = get_rag_chain(session_key = session_key, pdf_id = request.pdf_id)
+        
+        response = await conversational_chain.ainvoke(
+            {"question": request.question},
+            config = {"configurable": {"session_id": session_key}}
+        )
+        response['sources'] = list(set(response['sources']))
+        
+        return {
+            "response": response
+        }
+    except Exception as e:
+        print(e)
+        raise HTTPException(status_code = status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail = f"Internal server error {str(e)}")
         
         
 if __name__ == "__main__":

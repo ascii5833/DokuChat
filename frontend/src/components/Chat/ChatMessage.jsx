@@ -13,9 +13,9 @@ const ChatMessage = ({message, onCitiationClick}) => {
             <span className = "w-full text-xs font-semibold text-gray-500">Sources</span>
             {
                 message.sources.map((source, index)=>(
-                    <button key = {index} onClick = {()=> onCitiationClick(source.page, "spec")}
+                    <button key = {index} onClick = {()=> onCitiationClick(source, "spec")}
                     className = "rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm text-blue-700 hover:bg-blue-100 transition cursor-pointer">
-                        Page {source.page}
+                        Page {source}
                     </button>
                 ))
             }

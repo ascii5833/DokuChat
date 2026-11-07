@@ -9,6 +9,7 @@ import { useState} from 'react'
 import SuccessAlert from './components/Alert/SuccessAlert'
 import ErrorAlert from './components/Alert/ErrorAlert'
 
+
 function App() {
   const [numPages, setNumPages] = useState(null);
 
@@ -24,30 +25,51 @@ function App() {
 
   const [pdfId, setPdfId] = useState(null);
 
+  const [sessionId, setSessionId] = useState(null);
+  //pdf and session mapping
+  const [pdfSession, setPdfSession] = useState({});
+  //clear messages
+  const [clearMessages, setClearMessages] = useState(0);
+
+  //trigger clear
+  const triggerClearMessages = ()=>{
+    setClearMessages(prev=> prev + 1);
+  }
   //document list click handler
   const handleDocClick = async ({pdf_id, name, n_pages}) => {
-    try{
-      
-      const pdf_url = `http://127.0.0.1:8000/pdf/${pdf_id}`
 
-      setPages(n_pages);
+    try {
+        const pdf_url = `http://127.0.0.1:8000/pdf/${pdf_id}`;
 
-      setCurPdf(pdf_url);
+        setPages(n_pages);
+        setCurPdf(pdf_url);
+        setPdfId(pdf_id);
 
-      setPdfId(pdf_id);
+        let session_id = pdfSession[pdf_id];
 
-      setCurPage(1);
+        if (!session_id) {
+            session_id = window.crypto.randomUUID();
+
+            setPdfSession(prev => ({
+                ...prev,
+                [pdf_id]: session_id
+            }));
+        }
+
+        setSessionId(session_id);
+        setCurPage(1);
+        triggerClearMessages();
 
     }
-    catch(error){
-      console.error("Failed to load pdf " + error);
-      alert("Failed to fetch pdf, please try again");
+    catch(error) {
+        console.error("Failed to load pdf " + error);
+        alert("Failed to fetch pdf, please try again");
     }
-      
-  }
+};
  
   //handle document submit
   const handleSubmit = async (e)=>{
+   
     e.preventDefault();
     setSuccess(false);
     setError(false);
@@ -72,6 +94,7 @@ function App() {
         }
     const data = await response.json();
 
+
     const pdf_url = `http://127.0.0.1:8000/pdf/${data.filename}`;
 
     const n_pages = parseInt(data['n_pages']);
@@ -81,10 +104,16 @@ function App() {
     setCurPdf(pdf_url);
 
     setSuccess(true);
-    
-    setPdfId(data['pdf_id']);
+    const pdf_id = data['filename'];
+    const session_id = window.crypto.randomUUID();
+    setPdfId(pdf_id);
+    setSessionId(session_id);
+    setPdfSession(prev=> ({ ...prev,
+      [pdf_id] : session_id
+    }))
+    setCurPage(1);
    
-    
+    triggerClearMessages();
 
    }
    catch(error){
@@ -94,7 +123,44 @@ function App() {
    }
   
 
+   }
 
+  //handle chat send
+  const sendChat = async (question)=>{
+    setError(false);
+    const payload = {
+      question: question,
+      pdf_id: pdfId,
+      session_id: sessionId
+      
+    }
+
+    try{
+      const response = await fetch(`http://127.0.0.1:8000/chat/`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers:{
+          "Content-type": "application/json"
+        }
+      });
+
+      if(!response.ok){
+        throw new Error(`Something went wrong ${response.status}`);
+      }
+
+      const data = await response.json();
+      const message = data['response']
+
+
+      return message;
+
+
+    }
+    catch(error){
+      console.error("Something happened when sending message to the chatbot.")
+      setError(true);
+      throw error;
+    }
   }
 
   //pdf loaded successfully
@@ -111,7 +177,7 @@ function App() {
         }
 
         else if (type == "spec"){
-          if(!pages || page > pages || page < 0){
+          if(!pages || page > pages || page < 0 || isNaN(parseFloat(page))){
             alert("Invalid page.")
             return;
           }
@@ -130,7 +196,8 @@ return (
     <PdfViewer onDocumentLoadSuccess={onDocumentLoadSuccess}
 setCurrent={setCurrent} curPage={curPage} numPages={numPages} pdfPath = {curPdf}/> 
   </div>
-  <div className = "w-[40%] min-w-0">  <ChatWindow onCitiationClick={setCurrent}/></div>
+  <div className = "w-[40%] min-w-0">  <ChatWindow onCitiationClick={setCurrent} canChat = {pdfId && sessionId} sendChat = {sendChat}
+  clearMessages = {clearMessages}/></div>
   </div>
   <div className="flex align-middle w-full justify-center mt-20">  
     <DocListWindow itemClicked = {handleDocClick}/>

@@ -2,7 +2,7 @@ import React, {useState, useRef, useEffect} from 'react';
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 
-const ChatWindow = ({onCitiationClick}) =>{
+const ChatWindow = ({onCitiationClick, canChat, sendChat, clearMessages}) =>{
 const [messages, setMessages] = useState([
      {
             role: "assistant",
@@ -22,9 +22,17 @@ messagesEndRef.current?.scrollIntoView({
 });
 }, [loading, messages])
 
+useEffect(()=>{
+ if(clearMessages){
+    setMessages( [{
+            role: "assistant",
+            content: "Hello! Upload a PDF and ask me anything about it.",
+            sources: []
+        }]);
+ }
+}, [clearMessages])
 
-
-const handleSend = (question) => {
+const handleSend = async (question) => {
     const newMessage = {
         role: "user",
         content: question
@@ -34,20 +42,34 @@ const handleSend = (question) => {
 
     setLoading(true);
 
+    try{
+        const message = await sendChat(question);
 
-    //server request
-    setTimeout(()=>{
-        setMessages(prev=>[...prev, {
-            role : "assistant",
-            content: "This is a mock ai response always will trigger in our case",
-            sources:[
-                {page : 3},
-                {page: 6}
-            ]
-        }]);
+        const aiMessage = {
+            role: "assistant",
+            content: message.content,
+            sources:[...message.sources]
+        }
 
+        setMessages(prev => [...prev, aiMessage]);
+    }
+
+    catch(error){
+        console.error("Chat error:", error);
+        const aiMessage = {
+            role: "assistant",
+            content: "Unable to fetch response, try again later.",
+            sources: []
+        }
+
+        setMessages(prev => [...prev, aiMessage]);
+
+    }
+
+    finally{
         setLoading(false);
-    }, 1000);
+    }
+  
 }
 
 return (
@@ -68,7 +90,7 @@ return (
         </div>
 
 
-        <ChatInput onSend = {handleSend} />
+        <ChatInput onSend = {handleSend} canChat={canChat}  />
     </div>
 )
 }

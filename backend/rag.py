@@ -295,7 +295,69 @@ def generate_rag_chain(rag_prompt, retriever, model):
     )
     
     return rag_chain
-    
-    
-    
 
+def debug_retrieved_docs(x):
+    print("\n========== RETRIEVED DOCUMENTS ==========")
+
+    for i, doc in enumerate(x["retrieved_docs"]):
+        print(f"\nDocument {i + 1}")
+        print(doc.page_content[:300])
+
+    return x
+
+
+def generate_rag_chain_chatbot(rag_prompt, retriever, model):
+    '''
+    Generates the rag-chain for our use case.
+    
+    Parameters:
+    rag_prompt: chatprompt template
+    retriever: faiss retriever
+    model: generative model
+    
+    Returns:
+    rag_chain
+    
+    '''
+    rag_chain = (
+    #retrieved documents
+        RunnablePassthrough.assign(
+            retrieved_docs = (
+                itemgetter("question")
+                | retriever
+            )
+        )
+           # DEBUG: inspect retrieved chunks
+    | RunnableLambda(debug_retrieved_docs)
+        #format for context
+        | RunnablePassthrough.assign(
+            context = (
+                itemgetter("retrieved_docs")
+                | RunnableLambda(format_docs_with_pages)
+            )
+        )
+            #get the answer
+        | RunnablePassthrough.assign(
+            answer = (
+                rag_prompt | model | StrOutputParser()
+            )
+        )
+        #final output format
+        | RunnableLambda(
+            lambda x : {
+                "content" : x["answer"],
+                
+                "sources": [
+                     doc.metadata.get("page", -1) +  1
+                
+                    for doc in x['retrieved_docs']
+                ]
+            }
+        )
+    )
+    
+    return rag_chain
+    
+    
+    
+    
